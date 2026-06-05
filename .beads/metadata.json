@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "panopoly",
+  "project_id": "90682121-e332-45b4-933a-86bfd97b1231"
+}
