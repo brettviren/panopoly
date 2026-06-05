@@ -36,3 +36,18 @@ def project_add(pctx, name: str, sources: tuple, branch: str, ref: str) -> None:
     src_list = list(sources) if sources else None
     dest = add_project(root, name, src_list, branch=branch, ref=ref)
     click.echo(f"Added project at {dest}")
+
+
+@project_group.command("list", context_settings=CONTEXT_SETTINGS)
+@pass_pctx
+def project_list(pctx) -> None:
+    """List projects with their checked-out source repos."""
+    root = pctx.require_root()
+    projects = root.projects()
+    if not projects:
+        return
+    width = max(len(p) for p in projects)
+    for proj in projects:
+        repos = root.project_repos(proj)
+        repo_summary = " ".join(repos) if repos else "(no repos)"
+        click.echo(f"{proj:<{width}}  {repo_summary}")

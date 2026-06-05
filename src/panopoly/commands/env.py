@@ -32,6 +32,27 @@ def env_add(pctx, name: str, projects: tuple, spack: str) -> None:
     click.echo(f"Added environment at {dest}")
 
 
+@env_group.command("list", context_settings=CONTEXT_SETTINGS)
+@pass_pctx
+def env_list(pctx) -> None:
+    """List environments with image (if any) and active projects."""
+    root = pctx.require_root()
+    envs = root.envs()
+    if not envs:
+        return
+    width = max(len(e) for e in envs)
+    for env_name in envs:
+        parts = []
+        image = root.config.get("env", {}).get(env_name, {}).get("image")
+        if image:
+            parts.append(f"image:{image}")
+        projs = [p for p in root.projects() if root.env_views(env_name, p).exists()]
+        if projs:
+            parts.append("projects:" + ",".join(projs))
+        summary = "  ".join(parts) if parts else "(empty)"
+        click.echo(f"{env_name:<{width}}  {summary}")
+
+
 @env_group.command("enter", context_settings=CONTEXT_SETTINGS)
 @click.argument("projname")
 @click.option(

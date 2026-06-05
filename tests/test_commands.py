@@ -310,3 +310,101 @@ def test_config_capture_narrow(runner, area_with_project):
 def test_config_capture_help(runner):
     result = runner.invoke(cli, ["config", "capture", "--help"])
     assert result.exit_code == 0
+
+
+# ── source list ───────────────────────────────────────────────────────────────
+
+def test_source_list(runner, area_with_source):
+    root = area_with_source
+    result = runner.invoke(cli, ["--root", str(root.path), "source", "list"])
+    assert result.exit_code == 0, result.output
+    assert "origin" in result.output
+
+
+def test_source_list_shows_url(runner, area_with_source):
+    root = area_with_source
+    result = runner.invoke(cli, ["--root", str(root.path), "source", "list"])
+    # Should show the remote URL (the local path of the origin fixture)
+    assert result.exit_code == 0
+    lines = [l for l in result.output.splitlines() if l.strip()]
+    assert len(lines) == 1
+    assert "origin" in lines[0]
+
+
+def test_source_list_empty(runner, panopoly_area):
+    result = runner.invoke(cli, ["--root", str(panopoly_area), "source", "list"])
+    assert result.exit_code == 0
+    assert result.output == ""
+
+
+def test_source_list_short_help(runner):
+    result = runner.invoke(cli, ["source", "list", "-h"])
+    assert result.exit_code == 0
+
+
+# ── project list ──────────────────────────────────────────────────────────────
+
+def test_project_list(runner, area_with_project):
+    root = area_with_project
+    result = runner.invoke(cli, ["--root", str(root.path), "project", "list"])
+    assert result.exit_code == 0, result.output
+    assert "projX" in result.output
+    assert "origin" in result.output
+
+
+def test_project_list_one_line_per_project(runner, area_with_project):
+    root = area_with_project
+    result = runner.invoke(cli, ["--root", str(root.path), "project", "list"])
+    lines = [l for l in result.output.splitlines() if l.strip()]
+    assert len(lines) == 1  # only projX exists
+
+
+def test_project_list_empty(runner, panopoly_area):
+    result = runner.invoke(cli, ["--root", str(panopoly_area), "project", "list"])
+    assert result.exit_code == 0
+    assert result.output == ""
+
+
+def test_project_list_short_help(runner):
+    result = runner.invoke(cli, ["project", "list", "-h"])
+    assert result.exit_code == 0
+
+
+# ── env list ──────────────────────────────────────────────────────────────────
+
+def test_env_list(runner, area_with_project):
+    root = area_with_project
+    add_env(root, "host")
+    result = runner.invoke(cli, ["--root", str(root.path), "env", "list"])
+    assert result.exit_code == 0, result.output
+    assert "host" in result.output
+
+
+def test_env_list_shows_projects(runner, area_with_project):
+    root = area_with_project
+    add_env(root, "host")
+    result = runner.invoke(cli, ["--root", str(root.path), "env", "list"])
+    assert "projX" in result.output
+
+
+def test_env_list_shows_image(runner, area_with_project):
+    root = area_with_project
+    (root.path / PANOPOLY_MARKER / "config.toml").write_text(
+        '[env.el9]\nimage = "el9-img"\n'
+    )
+    add_env(PanopolyRoot(root.path, {"env": {"el9": {"image": "el9-img"}}}), "el9")
+    result = runner.invoke(cli, ["--root", str(root.path), "env", "list"])
+    assert result.exit_code == 0, result.output
+    assert "el9" in result.output
+    assert "el9-img" in result.output
+
+
+def test_env_list_empty(runner, panopoly_area):
+    result = runner.invoke(cli, ["--root", str(panopoly_area), "env", "list"])
+    assert result.exit_code == 0
+    assert result.output == ""
+
+
+def test_env_list_short_help(runner):
+    result = runner.invoke(cli, ["env", "list", "-h"])
+    assert result.exit_code == 0
