@@ -2,7 +2,7 @@
 import click
 
 from ..cli import cli, pass_pctx, CONTEXT_SETTINGS
-from ..ops import add_project
+from ..ops import add_project, _worktree_branch
 
 
 @cli.group("project", context_settings=CONTEXT_SETTINGS)
@@ -49,5 +49,11 @@ def project_list(pctx) -> None:
     width = max(len(p) for p in projects)
     for proj in projects:
         repos = root.project_repos(proj)
-        repo_summary = " ".join(repos) if repos else "(no repos)"
+        if repos:
+            tagged = [
+                f"{r}@{_worktree_branch(root.project_src(proj, r))}" for r in repos
+            ]
+            repo_summary = " ".join(tagged)
+        else:
+            repo_summary = "(no repos)"
         click.echo(f"{proj:<{width}}  {repo_summary}")

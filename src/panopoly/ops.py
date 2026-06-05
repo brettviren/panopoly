@@ -324,6 +324,25 @@ def _default_branch(bare_repo: Path) -> str:
     return result.stdout.strip() or "main"
 
 
+def _worktree_branch(worktree: Path) -> str:
+    """Return the current branch of a worktree, or short hash if HEAD is detached."""
+    result = subprocess.run(
+        ["git", "-C", str(worktree), "branch", "--show-current"],
+        capture_output=True,
+        text=True,
+    )
+    branch = result.stdout.strip() if result.returncode == 0 else ""
+    if branch:
+        return branch
+    # Detached HEAD — fall back to short commit hash
+    result2 = subprocess.run(
+        ["git", "-C", str(worktree), "rev-parse", "--short", "HEAD"],
+        capture_output=True,
+        text=True,
+    )
+    return result2.stdout.strip() if result2.returncode == 0 else "unknown"
+
+
 def _get_remote_url(bare_repo: Path) -> Optional[str]:
     result = subprocess.run(
         ["git", "-C", str(bare_repo), "remote", "get-url", "origin"],

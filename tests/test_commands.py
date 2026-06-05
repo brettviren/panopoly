@@ -349,7 +349,7 @@ def test_project_list(runner, area_with_project):
     result = runner.invoke(cli, ["--root", str(root.path), "project", "list"])
     assert result.exit_code == 0, result.output
     assert "projX" in result.output
-    assert "origin" in result.output
+    assert "origin@main" in result.output
 
 
 def test_project_list_one_line_per_project(runner, area_with_project):
