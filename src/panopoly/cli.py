@@ -10,6 +10,8 @@ from .core import PanopolyRoot
 
 log = logging.getLogger(__name__)
 
+CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
+
 
 class PanopolyContext:
     """Carries resolved panopoly state through Click context."""
@@ -37,7 +39,7 @@ def _setup_logging(level: str, log_file: Optional[str]) -> None:
     logging.basicConfig(level=numeric, handlers=[handler], force=True)
 
 
-@click.group()
+@click.group(context_settings=CONTEXT_SETTINGS)
 @click.option(
     "--root",
     type=click.Path(file_okay=False),

@@ -5,6 +5,8 @@ from pathlib import Path
 
 from panopoly.core import PANOPOLY_MARKER, PanopolyRoot
 from panopoly.ops import (
+    _add_worktree,
+    _branch_exists,
     _project_envrc,
     _env_envrc,
     _run_envrc,
@@ -91,6 +93,51 @@ def test_add_project_narrow_sources(area_with_source, git_origin, tmp_path):
     """Specifying sources=[] skips all repos without error."""
     add_project(area_with_source, "empty_proj", sources=[])
     assert area_with_source.project_src("empty_proj").is_dir()
+
+
+def test_add_project_explicit_existing_branch(area_with_source):
+    """--branch targeting an existing branch checks it out without creating."""
+    add_project(area_with_source, "projX", branch="main")
+    wt = area_with_source.project_src("projX", "origin")
+    assert (wt / "README.md").exists()
+    result = subprocess.run(
+        ["git", "-C", str(wt), "branch", "--show-current"],
+        capture_output=True, text=True, check=True,
+    )
+    assert result.stdout.strip() == "main"
+
+
+def test_add_project_new_branch_created(area_with_source):
+    """--branch with a non-existent name creates the branch from HEAD."""
+    add_project(area_with_source, "projX", branch="feature/x")
+    wt = area_with_source.project_src("projX", "origin")
+    assert (wt / "README.md").exists()
+    result = subprocess.run(
+        ["git", "-C", str(wt), "branch", "--show-current"],
+        capture_output=True, text=True, check=True,
+    )
+    assert result.stdout.strip() == "feature/x"
+
+
+def test_add_project_new_branch_from_ref(area_with_source):
+    """--branch with --ref creates the branch from the given ref."""
+    add_project(area_with_source, "projX", branch="feature/y", ref="main")
+    wt = area_with_source.project_src("projX", "origin")
+    result = subprocess.run(
+        ["git", "-C", str(wt), "branch", "--show-current"],
+        capture_output=True, text=True, check=True,
+    )
+    assert result.stdout.strip() == "feature/y"
+
+
+def test_branch_exists_true(area_with_source):
+    bare = area_with_source.source_repo("origin")
+    assert _branch_exists(bare, "main") is True
+
+
+def test_branch_exists_false(area_with_source):
+    bare = area_with_source.source_repo("origin")
+    assert _branch_exists(bare, "no-such-branch") is False
 
 
 def test_add_project_missing_source_logged(area_with_source, caplog):
@@ -192,11 +239,20 @@ def test_env_envrc_spack_conditional():
     assert "PATH_add" in content
 
 
+def test_run_envrc_sources_env_level():
+    content = _run_envrc()
+    # env-level .envrc must be sourced (provides PANOPOLY_SPACK / PATH)
+    assert 'source_env "$_P_ENV/.envrc"' in content
+
+
+def test_run_envrc_sources_project_level():
+    content = _run_envrc()
+    assert 'source_env "$_P_ROOT/project/$_P_PROJ/.envrc"' in content
+
+
 def test_run_envrc_relative_paths():
     content = _run_envrc()
-    # Verifies the directory traversal uses relative paths (../..)
     assert "../.." in content
-    assert "source_env" in content
     assert "PANOPOLY_PREFIX" in content
     assert "load_prefix" in content
 

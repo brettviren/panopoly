@@ -3,12 +3,12 @@ from pathlib import Path
 
 import click
 
-from ..cli import cli
+from ..cli import cli, CONTEXT_SETTINGS
 from ..core import PanopolyRoot, load_config
 from ..ops import apply_layout, init_area
 
 
-@cli.command("init")
+@cli.command("init", context_settings=CONTEXT_SETTINGS)
 @click.argument("directory", default=".", required=False)
 @click.option(
     "--layout",

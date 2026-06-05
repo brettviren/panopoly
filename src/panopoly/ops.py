@@ -62,8 +62,14 @@ def add_project(
     root: PanopolyRoot,
     name: str,
     sources: Optional[list[str]] = None,
+    branch: Optional[str] = None,
+    ref: Optional[str] = None,
 ) -> Path:
-    """Create project/<name> with git worktrees and a project .envrc (idempotent)."""
+    """Create project/<name> with git worktrees and a project .envrc (idempotent).
+
+    branch: if given, use this branch for every worktree (creating it when absent).
+    ref: starting point when creating a new branch; defaults to the bare repo HEAD.
+    """
     proj_dir = root.project_dir(name)
     root.project_src(name).mkdir(parents=True, exist_ok=True)
 
@@ -77,12 +83,7 @@ def add_project(
         if dest.exists():
             log.info("worktree %s already exists, skipping", dest)
             continue
-        branch = _default_branch(bare)
-        log.info("adding worktree %s (branch %s)", dest, branch)
-        subprocess.run(
-            ["git", "-C", str(bare), "worktree", "add", str(dest), branch],
-            check=True,
-        )
+        _add_worktree(bare, dest, branch, ref)
 
     envrc = proj_dir / ".envrc"
     if not envrc.exists():
@@ -254,6 +255,7 @@ _P_PROJ="$(basename "$_P_RUN")"
 _P_ENV="$(cd "$_P_RUN/../.." && pwd)"
 _P_ROOT="$(cd "$_P_ENV/../.." && pwd)"
 
+source_env "$_P_ENV/.envrc"
 source_env "$_P_ROOT/project/$_P_PROJ/.envrc"
 
 export PANOPOLY_PREFIX="$_P_ENV/views/$_P_PROJ"
@@ -264,6 +266,45 @@ unset _P_RUN _P_PROJ _P_ENV _P_ROOT
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
+
+
+def _branch_exists(bare_repo: Path, branch: str) -> bool:
+    result = subprocess.run(
+        ["git", "-C", str(bare_repo), "branch", "--list", branch],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return bool(result.stdout.strip())
+
+
+def _add_worktree(
+    bare: Path,
+    dest: Path,
+    branch: Optional[str],
+    ref: Optional[str],
+) -> None:
+    """Add a git worktree at dest, creating the branch if needed."""
+    if branch is None:
+        effective_branch = _default_branch(bare)
+        log.info("adding worktree %s (branch %s)", dest, effective_branch)
+        subprocess.run(
+            ["git", "-C", str(bare), "worktree", "add", str(dest), effective_branch],
+            check=True,
+        )
+    elif _branch_exists(bare, branch):
+        log.info("adding worktree %s (existing branch %s)", dest, branch)
+        subprocess.run(
+            ["git", "-C", str(bare), "worktree", "add", str(dest), branch],
+            check=True,
+        )
+    else:
+        start = ref or _default_branch(bare)
+        log.info("adding worktree %s (new branch %s from %s)", dest, branch, start)
+        subprocess.run(
+            ["git", "-C", str(bare), "worktree", "add", "-b", branch, str(dest), start],
+            check=True,
+        )
 
 
 def _repo_name_from_url(giturl: str) -> str:

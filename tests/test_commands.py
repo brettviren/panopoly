@@ -12,6 +12,27 @@ from panopoly.ops import add_env, add_project, add_source, init_area  # noqa: F4
 
 # ── init ──────────────────────────────────────────────────────────────────────
 
+# ── -h short help ─────────────────────────────────────────────────────────────
+
+def test_top_level_short_help(runner):
+    result = runner.invoke(cli, ["-h"])
+    assert result.exit_code == 0
+    assert "panopoly" in result.output.lower()
+
+
+def test_init_short_help(runner):
+    result = runner.invoke(cli, ["init", "-h"])
+    assert result.exit_code == 0
+
+
+def test_env_enter_short_help(runner):
+    result = runner.invoke(cli, ["env", "enter", "-h"])
+    assert result.exit_code == 0
+    assert "--action" in result.output
+
+
+# ── init ──────────────────────────────────────────────────────────────────────
+
 def test_init_creates_area(runner, tmp_path):
     result = runner.invoke(cli, ["init", str(tmp_path)])
     assert result.exit_code == 0, result.output
@@ -71,6 +92,12 @@ def test_source_add_help(runner):
     assert "GITURL" in result.output
 
 
+def test_source_add_short_help(runner):
+    result = runner.invoke(cli, ["source", "add", "-h"])
+    assert result.exit_code == 0
+    assert "GITURL" in result.output
+
+
 # ── project add ───────────────────────────────────────────────────────────────
 
 def test_project_add(runner, area_with_source):
@@ -96,6 +123,30 @@ def test_project_add_narrow_sources(runner, area_with_source):
     assert result.exit_code == 0, result.output
 
 
+def test_project_add_with_branch(runner, area_with_source):
+    root = area_with_source
+    result = runner.invoke(
+        cli, ["--root", str(root.path), "project", "add", "projX", "--branch", "main"]
+    )
+    assert result.exit_code == 0, result.output
+    assert root.project_src("projX", "origin").is_dir()
+
+
+def test_project_add_creates_new_branch(runner, area_with_source):
+    root = area_with_source
+    result = runner.invoke(
+        cli,
+        ["--root", str(root.path), "project", "add", "projX", "--branch", "feature/cli"],
+    )
+    assert result.exit_code == 0, result.output
+    wt = root.project_src("projX", "origin")
+    branch_result = subprocess.run(
+        ["git", "-C", str(wt), "branch", "--show-current"],
+        capture_output=True, text=True, check=True,
+    )
+    assert branch_result.stdout.strip() == "feature/cli"
+
+
 def test_project_add_help(runner):
     result = runner.invoke(cli, ["project", "add", "--help"])
     assert result.exit_code == 0
@@ -114,7 +165,11 @@ def test_env_add(runner, area_with_project):
 def test_env_add_creates_run_envrc(runner, area_with_project):
     root = area_with_project
     runner.invoke(cli, ["--root", str(root.path), "env", "add", "host"])
-    assert (root.env_run("host", "projX") / ".envrc").exists()
+    run_envrc = root.env_run("host", "projX") / ".envrc"
+    assert run_envrc.exists()
+    content = run_envrc.read_text()
+    assert 'source_env "$_P_ENV/.envrc"' in content
+    assert 'source_env "$_P_ROOT/project/$_P_PROJ/.envrc"' in content
 
 
 def test_env_add_with_spack(runner, area_with_project, tmp_path):

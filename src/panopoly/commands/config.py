@@ -3,16 +3,16 @@ from pathlib import Path
 
 import click
 
-from ..cli import cli, pass_pctx
+from ..cli import cli, pass_pctx, CONTEXT_SETTINGS
 from ..ops import capture_config
 
 
-@cli.group("config")
+@cli.group("config", context_settings=CONTEXT_SETTINGS)
 def config_group() -> None:
     """Configuration utilities."""
 
 
-@config_group.command("capture")
+@config_group.command("capture", context_settings=CONTEXT_SETTINGS)
 @click.argument("what", nargs=-1)
 @click.option(
     "-o", "--output",

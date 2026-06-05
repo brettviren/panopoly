@@ -5,16 +5,16 @@ from pathlib import Path
 
 import click
 
-from ..cli import cli, pass_pctx
+from ..cli import cli, pass_pctx, CONTEXT_SETTINGS
 from ..ops import add_env
 
 
-@cli.group("env")
+@cli.group("env", context_settings=CONTEXT_SETTINGS)
 def env_group() -> None:
     """Manage environments."""
 
 
-@env_group.command("add")
+@env_group.command("add", context_settings=CONTEXT_SETTINGS)
 @click.argument("name")
 @click.argument("projects", nargs=-1)
 @click.option(
@@ -32,7 +32,7 @@ def env_add(pctx, name: str, projects: tuple, spack: str) -> None:
     click.echo(f"Added environment at {dest}")
 
 
-@env_group.command("enter")
+@env_group.command("enter", context_settings=CONTEXT_SETTINGS)
 @click.argument("projname")
 @click.option(
     "-e", "--env", "env_name",
