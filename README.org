@@ -1,0 +1,118 @@
+#+title: panopoly - biuld and run overlapping subsets of source packages in different environments
+
+Still a w.i.p. and not yet super userful.
+
+Goals:
+
+- Have a single location to develop interrelated packages in more than one environment (native host vs one or more containers) while sharing common git repos, unified shell environment management and keeping binary build and external dependency areas distinct where they must be and shared where they can be.
+
+- Be able to fully specify the working area in a config file and to take a previously crafted working area and derive a config file that can reproduce its structure.
+
+The panopoly area follows a layout convention that is explicitly designed to
+achieving these goals.
+
+#+begin_example
+dev/
+├── .panopoly/                      # ── marks the area as being under panopoly control
+├── source/                         # ── shared across ALL environments
+│   ├── repoA.git/                  #    bare clones (the hub)
+│   ├── repoB.git/
+│   └── repoC.git/
+│
+├── project/                        # ── per-project, environment-agnostic
+│   ├── projX/
+│   │   ├── src/                    #    worktrees live here
+│   │   │   ├── repoA  ->  repoA.git worktree
+│   │   │   └── repoB  ->  repoB.git worktree
+│   │   └── .envrc                  #    top-level direnv: sets PROJECT=projX etc
+│   └── projY/
+│       ├── src/
+│       │   ├── repoB  ->  repoB.git worktree
+│       │   └── repoC  ->  repoC.git worktree
+│       └── .envrc
+│
+└── env/                            # ── per-environment, potentially per-project
+    ├── host/
+    │   ├── .envrc                  #    The env-level, project-independent shell config
+    │   ├── spack/                  #    Spack installation for host, or symink to it.
+    │   ├── views/
+    │   │   ├── projX/              #    Spack view: projX deps on host
+    │   │   └── projY/              #    Spack view: projY deps on host
+    │   ├── build/
+    │   │   ├── projX/
+    │   │   │   ├── repoA/              #    cmake/make build dir for repoA
+    │   │   │   └── repoB/
+    │   │   └── projY/
+    │   │       ├── repoB/
+    │   │       └── repoC/
+    │   └── run/                    #    direnv overlays for host
+    │       ├── projX/
+    │       │   └── .envrc          #    sources host view, sets build paths
+    │       └── projY/
+    │           └── .envrc
+    │
+    ├── el9/                        # ── one subtree per container image
+    │   ├── spack/
+    │   ├── views/
+    │   │   ├── projX/
+    │   │   └── projY/
+    │   ├── build/
+    │   │   ├── projX/
+    │   │   └── projY/
+    │   └── run/
+    │       ├── projX/
+    │       └── projY/
+    │
+    └── ubuntu24/
+        ├── spack/
+        ├── views/
+        ├── build/
+        └── run/
+
+#+end_example
+
+The main sub-directories:
+
+- =source/= :: holds bare git repos
+- =project/= :: holds git worktrees from a subset of repos
+- =env/= :: holds files specific to "environments"  
+
+The =env/= structure needs a bit more explanation:
+
+- =env/<envname>/= :: files for use by the native host or an a container.  
+- =env/<envname>/run/= :: the "working directory" that picks up full panopoly shell environment via direnv.
+- =env/<envname>/build/= :: the build directory for each project, one for each worktree.
+- =env/<envname>/spack/= :: a Spack instance, or symlink to one (optional)
+- =env/<envname>/views/= :: per-project Spack View directories.
+
+Spack support is optional.
+
+This layout spreads information that is often all bundled together.  To counter the confusion this brings, the =panopoly= command attempts to re-centralize common operations.
+
+
+#+begin_example
+$ panopoly init pano
+$ cd pano/
+
+$ panopoly source add git@github.com:WireCell/wire-cell-toolkit.git
+$ panopoly project add --branch wct-master --ref master wire-cell-toolkit
+$ panopoly env add --spack ~/standalone/spack/ standalone wct-master
+
+$ for thing in source project env
+      printf "%10s: %s\n" $thing (panopoly $thing list)
+  end
+    source: wire-cell-toolkit  git@github.com:WireCell/wire-cell-toolkit.git
+   project: wire-cell-toolkit  wire-cell-toolkit@wct-master
+       env: standalone  (empty)
+
+$ panopoly config capture 
+[source.wire-cell-toolkit]
+url = "git@github.com:WireCell/wire-cell-toolkit.git"
+
+[project.wire-cell-toolkit]
+sources = ["wire-cell-toolkit"]
+
+[env.standalone]
+spack = "/home/bviren/standalone/spack"       
+#+end_example
+
